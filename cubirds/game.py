@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum, auto
 import logging
-from random import randint
+from random import choice, randint
 
 from bird import Bird
 from move import Side, Move, Place, Fly, Buy, Pass
@@ -87,7 +87,10 @@ class Game:
     # TODO: put this inside play?
     def _play_place(self, move: Place):
         num = self.current_player.hand.take(move.bird)
-        birds = self.table.add(num, move.bird, move.row, move.side)
+        birds = self.table.add(num, move)
+
+        while self.table.is_single_species_in_row(move.row):
+            self.table.add_to_single_species_row(move.row, self.draw.pop())
 
         # TODO: recheck this in rule book
         if birds is None:
@@ -106,10 +109,23 @@ class Game:
                 logging.debug(f'Player #{turn} has no flock(s), turn goes to player #{self.turn}')
 
     def _play_fly(self, move: Fly):
-        raise NotImplementedError
+        num = self.current_player.hand.take(move.bird)
+        if num >= move.bird.big_flock:
+            self.current_player.collection.adds([move.bird] * 2)
+            self.discard.extend([move.bird] * (num - 2))
+        elif num >= move.bird.small_flock:
+            self.current_player.collection.add(move.bird)
+            self.discard.extend([move.bird] * (num - 1))
+        else:
+            raise ValueError('should be possible to flock')
+
+        self.turn = self._get_next_player()
 
     def _play_buy(self):
-        raise NotImplementedError
+        self.current_player.hand.adds([self.draw.pop() for _ in range(2)])
+        # TODO: log: player buys 2 cards - TODO: check boardcardgame for inspiration on msgs
+        logging.debug(f"Player {self.turn} buys two cards")
+        self.turn = self._get_next_player()     # pass -- TODO: Pass.run() idea
 
     @staticmethod
     def _get_legal_moves_buy_or_pass():
