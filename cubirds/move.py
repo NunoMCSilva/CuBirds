@@ -2,6 +2,12 @@ from __future__ import annotations
 
 from abc import ABC
 from dataclasses import dataclass
+from enum import Enum
+
+from bird import Bird   # TODO: not really necessary, but PyCharm keeps warning me about it's "lack"
+
+
+Side = Enum('Side', 'LEFT RIGHT')
 
 
 class Move(ABC):
