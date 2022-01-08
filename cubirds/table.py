@@ -1,8 +1,49 @@
-'''
-# TODO: put in it's own file
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from random import sample
+from typing import ClassVar
+
+from bird import Bird
+from move import Side
+
+
 @dataclass
 class Table:
     table: list[list[Bird]]
+
+    # TODO: not sure about the wisdom of this, but...
+    NUM_ROWS: ClassVar[int] = 4
+    NUM_COLS: ClassVar[int] = 3
+
+    def __repr__(self):
+        return repr(self.table)
+
+    @staticmethod
+    def generate_table(deck: list[list[Bird]]) -> Table:
+        # modifies deck inplace
+        return Table([[birds.pop() for birds in sample(deck, Table.NUM_COLS)] for _ in range(Table.NUM_ROWS)])
+
+    # TODO: better name? add_to_row?
+    def add(self, num: int, bird: Bird, row: int, side: Side):  # TODO: -> Optional[
+        if bird in self.table[row]:
+            # bird exists in row
+
+            # TODO: implement this part
+            return [Bird.FLAMINGO, Bird.FLAMINGO, Bird.MAGPIE]  # FIXME: WARNING: STUB
+        else:
+            # bird doesn't exist in row
+            if side == Side.RIGHT:
+                self.table[row].extend([bird] * num)
+            else:
+                # TODO: improve this one
+                for _ in range(num):
+                    self.table[row].insert(0, bird)
+
+            return None
+
+
+'''
 
     def add_to_row(self, *args):        ### birds, row, side):
         raise NotImplementedError

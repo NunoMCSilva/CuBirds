@@ -1,21 +1,28 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import Enum
-from random import randint, sample
+from enum import Enum, auto
+import logging
+from random import randint
 
 from bird import Bird
-from move import Move, Place
-from side import Side
+from move import Side, Move, Place, Fly, Buy, Pass
+from player import Player
+from table import Table
+from utils import shuffle
 
 
-'''
-# TODO: put this in a constants file?
-TABLE_ROWS, TABLE_COLS = 3, 4   # TODO: put inside Table class
-STARTING_HAND_SIZE = 8
+logging.basicConfig(level=logging.DEBUG)
 
 
-Stage = Enum('State', 'PLACE')
+class Stage(Enum):
+    PLACE = auto()
+    BUY_OR_PASS = auto()
+    FLY_OR_PASS = auto()
+
+    # TODO: create a Enum class in utils that already has this?
+    def __repr__(self):
+        return self.name.capitalize()   # TODO: Buy_or_pass => BuyOrPass OR Buy_or_Pass
 
 
 @dataclass
@@ -32,20 +39,17 @@ class Game:
 
     def __post_init__(self):
         self.turn = self._get_random_turn(self.num_players)
-        self.players = self._generate_players(self.num_players)
+        self.players = Player.generate_players(self.num_players)
 
         deck = Bird.get_deck()
-        self.table = self._lay_table(deck)
+        self.table = Table.generate_table(deck)
         self.draw = self._setup_draw(deck)
 
         self._deal_hands()
         self._deal_first_bird_to_collection()
 
-        # TODO: add to tests: assert len(self.draw) == 110 - 3 * 4 - 2 * 8 - 2 * 1
-
     @property
-    def current(self):
-        # current player
+    def current_player(self):
         return self.players[self.turn]
 
     @staticmethod
@@ -53,57 +57,144 @@ class Game:
         return randint(0, num_players - 1)
 
     @staticmethod
-    def _generate_players(num_players: int) -> list[Player]:
-        return [Player(p) for p in range(num_players)]
-
-    @staticmethod
-    def _lay_table(deck: list[list[Bird]]) -> Table:
-        def generate_table():
-            # modifies deck inplace
-            for _ in range(TABLE_ROWS):
-                yield [birds.pop() for birds in sample(deck, TABLE_COLS)]
-
-        return Table(list(generate_table()))
-
-    @staticmethod
     def _setup_draw(deck: list[list[Bird]]) -> list[Bird]:
         def flatten_deck(d):
             return sum(d, [])
 
-        def shuffle_deck(d):
-            return sample(d, len(d))    # TODO: recheck this works
-
-        return shuffle_deck(flatten_deck(deck))
+        return shuffle(flatten_deck(deck))
 
     def _deal_hands(self) -> None:
-        # modifies self.draw and self.players inplace
-        for p in range(self.num_players):   # TODO: start with dealer?
-            for _ in range(STARTING_HAND_SIZE):
+        # modifies self.draw and self.players in place
+        for p in range(self.num_players):       # TODO: start with dealer?
+            for _ in range(Player.STARTING_HAND_SIZE):
                 self.players[p].hand.add(self.draw.pop())
 
     def _deal_first_bird_to_collection(self) -> None:
+        # modifies self.draw and self.players inplace
         for p in range(self.num_players):   # TODO: start with dealer?
-            # modifies self.draw and self.players inplace
             self.players[p].collection.add(self.draw.pop())
 
-    def _get_legal_moves_place(self):   # TODO: yield
-        for bird in self.current.bird_species_in_hand:
-            for row in range(TABLE_ROWS):
+    # TODO: put this inside get_legal_moves?
+    def _get_legal_moves_place(self):  # TODO: -> yield
+        for bird in self.current_player.hand.get_species():
+            for row in range(Table.NUM_ROWS):
                 for side in Side:
                     yield Place(bird, row, side)
 
-    # TODO: make this inner funtions of play?
-    def _move_place(self, place: Place):
-        """        num = self.current_player.take_birds(move.species)
+    def _get_next_player(self) -> int:
+        return (self.turn + 1) % self.num_players
 
-        if (result := self.table.add_to_row(move.row, move.side, move.species, num)) is None:
-            logging.info(f'Player #{self.current_player.id} places {num}{move.species!r} on {move.side!r} of row #{move.row} without surrounding')
-            self.stage = 'Buy|Pass'
+    # TODO: put this inside play?
+    def _play_place(self, move: Place):
+        num = self.current_player.hand.take(move.bird)
+        birds = self.table.add(num, move.bird, move.row, move.side)
+
+        # TODO: recheck this in rule book
+        if birds is None:
+            self.stage = Stage.BUY_OR_PASS
+            logging.debug(f'Player #{self.turn} received no card from placement, it can now buy or pass')
+        else:
+            self.current_player.hand.adds(birds)
+            logging.debug(f'Player #{self.turn} received {birds} from placement')
+
+            if flocks := self.current_player.hand.get_flocks():
+                self.stage = Stage.FLY_OR_PASS
+                logging.debug(f'Player #{self.turn} has {flocks} flock(s), it can now fly or pass')
+            else:
+                turn = self.turn
+                self.turn = self._get_next_player()
+                logging.debug(f'Player #{turn} has no flock(s), turn goes to player #{self.turn}')
+
+    def _play_fly(self, move: Fly):
+        raise NotImplementedError
+
+    def _play_buy(self):
+        raise NotImplementedError
+
+    @staticmethod
+    def _get_legal_moves_buy_or_pass():
+        # TODO: improve this...
+        yield Buy()
+        yield Pass()
+
+    def _get_legal_moves_fly_or_pass(self):
+        for bird in self.current_player.hand.get_flocks():
+            yield Fly(bird)
+        yield Pass()
+
+    def get_legal_moves(self):  # TODO: -> yield
+        # TODO: improve this
+        if self.stage == Stage.PLACE:
+            yield from self._get_legal_moves_place()
+        elif self.stage == Stage.BUY_OR_PASS:
+            yield from self._get_legal_moves_buy_or_pass()
+        elif self.stage == Stage.FLY_OR_PASS:
+            yield from self._get_legal_moves_fly_or_pass()
         else:
             raise NotImplementedError
+
+    def play(self, move: Move):
+        if move in self.get_legal_moves():
+            if isinstance(move, Place):
+                self._play_place(move)
+            elif isinstance(move, Fly):
+                self._play_fly(move)
+            elif isinstance(move, Buy):
+                self._play_buy()
+            else:
+                raise NotImplementedError
+        else:
+            raise ValueError('illegal move', move)  # TODO: improve exception
+
         """
-        birds = self.current.take_birds_from_hand(place.bird)
-        self.table.add_to_row(birds, place.row, place.side)
+        # TODO: improve this... should need so many ifs
+        if move in self.get_legal_moves():  # TODO: optimized this: a cache?
+            # TODO: it would be nice not to need isinstance here
+            if isinstance(move, Place):
+                if self.stage == Stage.PLACE:
+                    self._play_place(move)
+                else:
+                    # TODO: can this even happen, with the get_legal_move verification?
+                    raise ValueError('wrong stage', self.stage, move)  # TODO: improve exception
+            elif isinstance(move, Fly):
+                if self.stage == Stage.FLY_OR_PASS:
+                    self._play_fly(move)
+            elif isinstance(move, Buy):
+                if self.stage == Stage.BUY_OR_PASS:
+                    self._play_buy()
+            else:
+                raise NotImplementedError
+        """
+
+
+def main():
+    g = Game(num_players=2)
+    print(g)
+
+    lms = list(g.get_legal_moves())
+    print(lms)
+    move = lms[0]
+    print(move)
+
+    g.play(move)
+    print(g)
+
+    lms = list(g.get_legal_moves())
+    print(lms)
+    move = lms[0]
+    print(move)
+
+    g.play(move)
+    print(g)
+
+
+if __name__ == '__main__':
+    main()
+
+
+
+'''
+
 
     def get_legal_moves(self):  # TODO: -> yield
         if self.stage == Stage.PLACE:
