@@ -7,20 +7,13 @@ from typing import ClassVar
 from bird import Bird
 
 
-# TODO: DictBirds superclass of Hand and Collection
 @dataclass
-class Hand:
+class DictBirds:
     # TODO: can I use defaultdict(int) as annotation?
-    hand: dict = field(default_factory=lambda: defaultdict(int))
-
-    def __bool__(self):
-        return bool(self.hand)
-
-    def __repr__(self):
-        return repr([[b] * n for b, n in self.hand.items()])
+    db: dict = field(default_factory=lambda: defaultdict(int))
 
     def add(self, bird: Bird):
-        self.hand[bird] += 1
+        self.db[bird] += 1
 
     # TODO: needs better name
     def adds(self, birds: list[Bird]):
@@ -28,17 +21,28 @@ class Hand:
             self.add(b)
 
     def get_species(self):  # TODO: add ->, TODO: better name? get_species_in_hand?
-        return self.hand.keys()
+        return self.db.keys()
+
+
+# TODO: subclassing necessary?
+@dataclass
+class Hand(DictBirds):
+
+    def __bool__(self):
+        return bool(self.db)
+
+    def __repr__(self):
+        return repr([[b] * n for b, n in self.db.items()])
 
     def take(self, bird: Bird) -> int:
-        num = self.hand[bird]
-        del self.hand[bird]
+        num = self.db[bird]
+        del self.db[bird]
         return num
 
     def get_flocks(self) -> list[Bird]:
         # TODO: can be improved?
         def flocks():
-            for b, n in self.hand.items():
+            for b, n in self.db.items():
                 if n >= b.small_flock:
                     yield b
 
@@ -54,31 +58,18 @@ class Hand:
 
 
 @dataclass
-class Collection:
-    # TODO: can I use defaultdict(int) as annotation?
-    collection: dict = field(default_factory=lambda: defaultdict(int))
+class Collection(DictBirds):
 
     def __repr__(self):
-        return ', '.join(f'{b!r}:{n}' for b, n in self.collection.items())
-
-    @property
-    def total_birds(self):
-        return sum(self.collection.values())
-
-    def add(self, bird: Bird):
-        self.collection[bird] += 1
-
-    # TODO: needs better name
-    def adds(self, birds: list[Bird]):
-        for b in birds:
-            self.add(b)
-
-    def get_species(self):  # TODO: add ->, TODO: better name? get_species_in_hand?
-        return self.collection.keys()
+        return ', '.join(f'{b!r}:{n}' for b, n in self.db.items())
 
     def is_goal(self) -> bool:
         # TODO: add values to constants
-        return len(self.get_species()) == 7 or len([b for b, n in self.collection.items() if n >= 3]) >= 2
+        return len(self.get_species()) == 7 or len([b for b, n in self.db.items() if n >= 3]) >= 2
+
+    @property
+    def total_birds(self):
+        return sum(self.db.values())
 
 
 @dataclass
