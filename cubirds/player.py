@@ -53,6 +53,11 @@ class Collection:
     def add(self, bird: Bird):
         self.collection[bird] += 1
 
+    # TODO: needs better name
+    def adds(self, birds: list[Bird]):
+        for b in birds:
+            self.add(b)
+
 
 @dataclass
 class Player:
