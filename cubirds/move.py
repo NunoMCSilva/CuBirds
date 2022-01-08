@@ -4,7 +4,7 @@ from abc import ABC
 from dataclasses import dataclass
 from enum import Enum, auto
 
-from bird import Bird   # TODO: not really necessary, but PyCharm keeps warning me about it's "lack"
+from .bird import Bird   # TODO: not really necessary, but PyCharm keeps warning me about it's "lack"
 
 
 # Side = Enum('Side', 'LEFT RIGHT')

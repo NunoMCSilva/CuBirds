@@ -6,11 +6,11 @@ import logging
 from random import choice, randint
 from typing import Union
 
-from bird import Bird
-from move import Side, Move, Place, Fly, Buy, Pass
-from player import Player
-from table import Table
-from utils import shuffle
+from .bird import Bird
+from .move import Side, Move, Place, Fly, Buy, Pass
+from .player import Player
+from .table import Table
+from .utils import shuffle
 
 
 #logging.basicConfig(level=logging.DEBUG)

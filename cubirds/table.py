@@ -4,9 +4,9 @@ from dataclasses import dataclass
 from random import choice, sample
 from typing import ClassVar, Optional
 
-from bird import Bird
-from move import Side, Place
-from utils import count_adjacent
+from .bird import Bird
+from .move import Side, Place
+from .utils import count_adjacent
 
 
 @dataclass

@@ -4,7 +4,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import ClassVar
 
-from bird import Bird
+from .bird import Bird
 
 
 @dataclass
