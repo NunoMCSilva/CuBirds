@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
 from random import randint, sample
@@ -10,111 +9,10 @@ from move import Move, Place
 from side import Side
 
 
+'''
+# TODO: put this in a constants file?
 TABLE_ROWS, TABLE_COLS = 3, 4   # TODO: put inside Table class
 STARTING_HAND_SIZE = 8
-
-
-# TODO: put in it's own file
-@dataclass
-class Table:
-    table: list[list[Bird]]
-
-    def add_to_row(self, *args):        ### birds, row, side):
-        raise NotImplementedError
-
-        """
-        if bird in self.table[row]:
-            raise NotImplementedError
-        else:
-            if side == Side.RIGHT:
-                self.table[row].extend(bird)
-        """
-
-'''
-@dataclass
-class Table:
-    table: list[list[Species]] = field(default=None)
-
-    def add_to_row(self, row, side, species, num):
-        # check presence
-        surrounded = species in self.table[row]
-        print(surrounded)
-
-        def add(row, side, cards):
-            if side == Side.LEFT:
-                # TODO: needs work
-                for c in cards:
-                    row.insert(0, c)
-            else:
-                row.extend(cards)
-
-        if surrounded:
-            raise NotImplementedError
-        else:
-            add(self.table[row], side, [species] * num)
-            return None
-
-        """
-        if surrounded:
-            self.table[row].index(species)
-            self.table[row].count(species)
-        """
-        """
-        # add
-        print(self.table[row])
-
-        if side == Side.LEFT:
-            # TODO: needs work
-            for _ in range(num):
-                self.table[row].insert(0, species)
-
-            print(self.table[row])
-        """
-
-        """
-        if side == Side.LEFT:
-            # TODO: needs work
-            start = num
-            for _ in range(num):
-                self.table[row].insert(0, species)
-            print(start, self.table[row], self.table[row][start:])
-        else:
-            end = len(self.table[row])
-            self.table[row].extend([species] * num)
-            print(end, self.table[row], self.table[row][:end])
-
-        if surrounded:
-            print(self.table[row])
-        else:
-            return None
-        """
-'''
-
-
-@dataclass
-class Player:
-
-    @dataclass
-    class DictHand:
-        dict_hand: dict[Bird, int] = field(
-            default_factory=lambda: defaultdict(int))  # TODO: use defaultdict(int) as annot?
-
-        def add(self, bird: Bird):
-            self.dict_hand[bird] += 1
-
-    id: int     # is this necessary?
-    hand: DictHand = field(default_factory=DictHand)
-    collection: DictHand = field(default_factory=DictHand)
-
-    @property
-    def bird_species_in_hand(self):
-        return self.hand.dict_hand.keys()   # TODO: improve this a bit...
-
-    def take_birds_from_hand(self, bird: Bird) -> list[Bird]:
-        # TODO: ok, it needs some work, as well as dict hand -> remove to own file
-        num = self.hand.dict_hand[bird]
-        self.hand.dict_hand[bird] = 0
-        return [bird] * num
 
 
 Stage = Enum('State', 'PLACE')
@@ -238,6 +136,11 @@ def main():
 
 if __name__ == '__main__':
     main()
+'''
+
+
+
+
 
 
 
