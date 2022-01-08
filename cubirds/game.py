@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 import logging
 from random import choice, randint
+from typing import Union
 
 from bird import Bird
 from move import Side, Move, Place, Fly, Buy, Pass
@@ -12,7 +13,8 @@ from table import Table
 from utils import shuffle
 
 
-logging.basicConfig(level=logging.DEBUG)
+#logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 
 class Stage(Enum):
@@ -36,6 +38,9 @@ class Game:
     table: Table = field(default=None)
     draw: list[Bird] = field(default=None)
     discard: list[Bird] = field(default_factory=list)
+
+    _endgame: bool = field(default=False, repr=False)
+    _game_winner: Player = field(default=None)
 
     def __post_init__(self):
         self.turn = self._get_random_turn(self.num_players)
@@ -67,7 +72,7 @@ class Game:
         # modifies self.draw and self.players in place
         for p in range(self.num_players):       # TODO: start with dealer?
             for _ in range(Player.STARTING_HAND_SIZE):
-                self.players[p].hand.add(self.draw.pop())
+                self.players[p].hand.add(self._draw_card())
 
     def _deal_first_bird_to_collection(self) -> None:
         # modifies self.draw and self.players inplace
@@ -81,11 +86,55 @@ class Game:
                 for side in Side:
                     yield Place(bird, row, side)
 
+    """
     def _get_next_player(self) -> int:
         return (self.turn + 1) % self.num_players
+    """
+
+    def _next_turn(self) -> None:
+        self.turn = (self.turn + 1) % self.num_players
+        self.stage = Stage.PLACE
+
+    def _new_round(self):
+        # discard all hands
+        for p in self.players:
+            self.discard.extend(p.hand.reset())
+
+        # "The game ends immediately if it is impossible for the dealer to deal 8 cards to (...)
+        if len(self.draw) < self.num_players * Player.STARTING_HAND_SIZE:
+            raise ValueError('insufficient cards')   # TODO: better exception
+        else:
+            self._deal_hands()
+
+    def _draw_card(self) -> Bird:
+        try:
+            return self.draw.pop()
+        except IndexError:
+            self.draw = shuffle(self.discard)   # TODO: check rulebook, shuffle?
+            self.discard = []
+
+            return self.draw.pop()
+
+    def _is_endgame(self):
+        return self.current_player.collection.is_goal()
+
+    def _calculate_game_winner(self):
+        # endgame in case of insufficient cards
+        """
+        The game ends immediately if it is impossible for the dealer to deal 8 cards to
+        each of the players even after reshuffling the discard pile into a new draw pile. The
+        player with the most Bird cards in their collection then wins the game.
+        In case of a tie, tied players share victory.
+        """
+        # TODO: improve this
+        total = [(p.collection.total_birds, p) for p in self.players]
+        max_ = max([tup[0] for tup in total])
+        winners = [tup[1] for tup in total if tup[0] == max_]
+
+        return winners[0] if len(winners) == 1 else winners
 
     # TODO: put this inside play?
-    def _play_place(self, move: Place):
+    def _play_place(self, move: Place) -> None:
         num = self.current_player.hand.take(move.bird)
         birds = self.table.add(num, move)
 
@@ -96,6 +145,13 @@ class Game:
         if birds is None:
             self.stage = Stage.BUY_OR_PASS
             logging.debug(f'Player #{self.turn} received no card from placement, it can now buy or pass')
+
+            if not self.current_player.hand:
+                try:
+                    self._new_round()
+                except ValueError:
+                    self._endgame = True
+                    self._game_winner = self._calculate_game_winner()
         else:
             self.current_player.hand.adds(birds)
             logging.debug(f'Player #{self.turn} received {birds} from placement')
@@ -104,11 +160,12 @@ class Game:
                 self.stage = Stage.FLY_OR_PASS
                 logging.debug(f'Player #{self.turn} has {flocks} flock(s), it can now fly or pass')
             else:
-                turn = self.turn
-                self.turn = self._get_next_player()
-                logging.debug(f'Player #{turn} has no flock(s), turn goes to player #{self.turn}')
+                #turn = self.turn
+                #self.turn = self._get_next_player()
+                logging.debug(f'Player #{self.turn} has no flock(s)')    #, turn goes to player #{self.turn}')
+                self._next_turn()
 
-    def _play_fly(self, move: Fly):
+    def _play_fly(self, move: Fly) -> None:
         num = self.current_player.hand.take(move.bird)
         if num >= move.bird.big_flock:
             self.current_player.collection.adds([move.bird] * 2)
@@ -119,13 +176,31 @@ class Game:
         else:
             raise ValueError('should be possible to flock')
 
-        self.turn = self._get_next_player()
+        if self._is_endgame():
+            self._endgame = True
+            self._game_winner = self.current_player
+            return
 
-    def _play_buy(self):
-        self.current_player.hand.adds([self.draw.pop() for _ in range(2)])
+        if not self.current_player.hand:
+            try:
+                self._new_round()
+            except ValueError:
+                self._endgame = True
+                self._game_winner = self._calculate_game_winner()
+                return
+
+        #self.turn = self._get_next_player()
+        self._next_turn()
+
+    def _play_buy(self) -> None:
+        self.current_player.hand.adds([self._draw_card() for _ in range(2)])
         # TODO: log: player buys 2 cards - TODO: check boardcardgame for inspiration on msgs
         logging.debug(f"Player {self.turn} buys two cards")
-        self.turn = self._get_next_player()     # pass -- TODO: Pass.run() idea
+        #self.turn = self._get_next_player()     # pass -- TODO: Pass.run() idea
+        self._next_turn()
+
+    def _play_pass(self) -> None:
+        self._next_turn()
 
     @staticmethod
     def _get_legal_moves_buy_or_pass():
@@ -157,39 +232,38 @@ class Game:
                 self._play_fly(move)
             elif isinstance(move, Buy):
                 self._play_buy()
+            elif isinstance(move, Pass):
+                self._play_pass()
             else:
-                raise NotImplementedError
+                raise ValueError('illegal move class', move)  # TODO: improve exception
         else:
             raise ValueError('illegal move', move)  # TODO: improve exception
 
-        """
-        # TODO: improve this... should need so many ifs
-        if move in self.get_legal_moves():  # TODO: optimized this: a cache?
-            # TODO: it would be nice not to need isinstance here
-            if isinstance(move, Place):
-                if self.stage == Stage.PLACE:
-                    self._play_place(move)
-                else:
-                    # TODO: can this even happen, with the get_legal_move verification?
-                    raise ValueError('wrong stage', self.stage, move)  # TODO: improve exception
-            elif isinstance(move, Fly):
-                if self.stage == Stage.FLY_OR_PASS:
-                    self._play_fly(move)
-            elif isinstance(move, Buy):
-                if self.stage == Stage.BUY_OR_PASS:
-                    self._play_buy()
-            else:
-                raise NotImplementedError
-        """
+    def is_endgame(self) -> bool:
+        return self._endgame
+
+    def get_winner(self) -> Union[Player, list[Player]]:
+        return self._game_winner
 
 
 def main():
     g = Game(num_players=2)
     print(g)
 
+    while not g.is_endgame():
+        move = choice(list(g.get_legal_moves()))    # TODO: add random_play?
+        print(move)
+
+        g.play(move)
+        print(g)
+
+    print(g)
+    print('Winner(s) =', g.get_winner())
+
+    """
     lms = list(g.get_legal_moves())
     print(lms)
-    move = lms[0]
+    move = choice(lms)
     print(move)
 
     g.play(move)
@@ -197,11 +271,15 @@ def main():
 
     lms = list(g.get_legal_moves())
     print(lms)
-    move = lms[0]
+    move = choice(lms)
     print(move)
 
     g.play(move)
     print(g)
+
+    if g.current_player.\:
+        print(g.current_player.hand, bool(g.current_player.hand), bool(Player(2).hand))
+    """
 
 
 if __name__ == '__main__':
