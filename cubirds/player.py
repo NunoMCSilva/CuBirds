@@ -72,16 +72,3 @@ class Player:
     def generate_players(num_players: int) -> list[Player]:
         # return list(map(Player, range(num_players)))
         return [Player(p) for p in range(num_players)]
-
-
-'''
-    @property
-    def bird_species_in_hand(self):
-        return self.hand.dict_hand.keys()   # TODO: improve this a bit...
-
-    def take_birds_from_hand(self, bird: Bird) -> list[Bird]:
-        # TODO: ok, it needs some work, as well as dict hand -> remove to own file
-        num = self.hand.dict_hand[bird]
-        self.hand.dict_hand[bird] = 0
-        return [bird] * num
-'''
