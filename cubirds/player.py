@@ -13,6 +13,9 @@ class Hand:
     # TODO: can I use defaultdict(int) as annotation?
     hand: dict = field(default_factory=lambda: defaultdict(int))
 
+    def __bool__(self):
+        return bool(self.hand)
+
     def __repr__(self):
         return repr([[b] * n for b, n in self.hand.items()])
 
@@ -41,6 +44,14 @@ class Hand:
 
         return list(flocks())
 
+    def reset(self) -> list[Bird]:
+        # TODO: improve this
+        birds = []
+        for bird in list(self.get_species()):
+            num = self.take(bird)
+            birds.extend([bird] * num)
+        return birds
+
 
 @dataclass
 class Collection:
@@ -50,6 +61,10 @@ class Collection:
     def __repr__(self):
         return ', '.join(f'{b!r}:{n}' for b, n in self.collection.items())
 
+    @property
+    def total_birds(self):
+        return sum(self.collection.values())
+
     def add(self, bird: Bird):
         self.collection[bird] += 1
 
@@ -57,6 +72,13 @@ class Collection:
     def adds(self, birds: list[Bird]):
         for b in birds:
             self.add(b)
+
+    def get_species(self):  # TODO: add ->, TODO: better name? get_species_in_hand?
+        return self.collection.keys()
+
+    def is_goal(self) -> bool:
+        # TODO: add values to constants
+        return len(self.get_species()) == 7 or len([b for b, n in self.collection.items() if n >= 3]) >= 2
 
 
 @dataclass
