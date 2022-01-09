@@ -68,7 +68,7 @@ class Table:
         return birds
 
     def is_single_species_in_row(self, row: int) -> bool:
-        return set(self.table[row]) == 1
+        return len(set(self.table[row])) == 1
 
     def add_to_single_species_row(self, row: int, bird: Bird):
         # TODO: verify this in rulebook, each can be place by deal on either side

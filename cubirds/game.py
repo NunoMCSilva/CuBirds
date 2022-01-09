@@ -138,6 +138,7 @@ class Game:
         num = self.current_player.hand.take(move.bird)
         birds = self.table.add(num, move)
 
+        #print('x', move.row, self.table.is_single_species_in_row(move.row))
         while self.table.is_single_species_in_row(move.row):
             self.table.add_to_single_species_row(move.row, self.draw.pop())
 

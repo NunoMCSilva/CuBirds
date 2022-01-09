@@ -39,6 +39,7 @@ class Hand(DictBirds):
         del self.db[bird]
         return num
 
+    # TODO: FIXME: might not be working
     def get_flocks(self) -> list[Bird]:
         # TODO: can be improved?
         def flocks():
