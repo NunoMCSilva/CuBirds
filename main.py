@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from random import choice
+
 from cubirds import Game, Bird, Stage, Side, Place, Fly, Buy, Pass
 
 
@@ -15,6 +17,7 @@ def show_player(player):
     print('\tCollection:', player.collection)
 
 
+# TODO: code into Game what is visible and isn't?
 def show_game(game):     # TODO: add to Game?
     # TODO: only for 2 player (for now)
     #print(game)
@@ -145,7 +148,7 @@ def _ask_fly_or_pass(game):
             print(p)
             return p
         elif result == 'F':
-            return _ask_fly_species(game)
+            return Fly(_ask_fly_species(game))
         elif result == 'P':
             return Pass()
         else:
@@ -174,9 +177,17 @@ def main():
     game = Game(2)
 
     while not game.is_endgame():
-        show_game(game)
-        move = ask_move(game)
-        game.play(move)
+        if game.current_player.id == 0:
+            show_game(game)
+            move = ask_move(game)
+            print(move)
+            game.play(move)
+        else:
+            show_game(game)
+            # TODO: turn get_species into @property species
+            move = choice(list(game.get_legal_moves()))
+            print(move)
+            game.play(move)
 
 
 if __name__ == '__main__':
